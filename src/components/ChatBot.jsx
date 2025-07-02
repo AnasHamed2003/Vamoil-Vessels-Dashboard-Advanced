@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
+import { useTheme } from "./ThemeProvider"
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -32,6 +33,7 @@ const ChatBot = () => {
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
+  const { isDark } = useTheme()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -252,7 +254,7 @@ const ChatBot = () => {
         <div className="fixed bottom-6 right-6 z-50">
           <Button
             onClick={() => setIsOpen(true)}
-            className="h-16 w-16 rounded-full bg-gradient-to-r from-[#2e1a47] to-[#3d2456] hover:from-[#3d2456] hover:to-[#4a2d5f] shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110"
+            className="h-16 w-16 rounded-full bg-gradient-to-r from-[#2e1a47] to-[#3d2456] hover:from-[#3d2456] hover:to-[#4a2d5f] dark:from-[#4a2d5f] dark:to-[#5a3d6f] dark:hover:from-[#5a3d6f] dark:hover:to-[#6a4d7f] shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110"
             size="icon"
           >
             <MessageCircle className="h-7 w-7 text-white" />
@@ -267,11 +269,11 @@ const ChatBot = () => {
           <Card
             className={`w-96 shadow-2xl border-0 overflow-hidden transition-all duration-300 ${
               isMinimized ? "h-16" : "h-[600px]"
-            }`}
+            } ${isDark ? "bg-gray-800 border-gray-700" : "bg-white"}`}
           >
             {/* Header */}
             <CardHeader
-              className="bg-gradient-to-r from-[#2e1a47] to-[#3d2456] text-white p-4 cursor-pointer"
+              className="bg-gradient-to-r from-[#2e1a47] to-[#3d2456] dark:from-[#4a2d5f] dark:to-[#5a3d6f] text-white p-4 cursor-pointer"
               onClick={() => setIsMinimized(!isMinimized)}
             >
               <div className="flex items-center justify-between">
@@ -318,10 +320,12 @@ const ChatBot = () => {
                 {/* Messages Area */}
                 <div
                   ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+                  className={`flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent transition-colors duration-200 ${
+                    isDark ? "bg-gray-800/50" : "bg-gray-50/50"
+                  }`}
                   style={{
                     scrollbarWidth: "thin",
-                    scrollbarColor: "#cbd5e1 transparent",
+                    scrollbarColor: isDark ? "#4b5563 transparent" : "#cbd5e1 transparent",
                   }}
                 >
                   {messages.map((msg) => (
@@ -335,22 +339,26 @@ const ChatBot = () => {
                         <div
                           className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
                             msg.type === "user"
-                              ? "bg-gradient-to-r from-[#2e1a47] to-[#3d2456]"
-                              : "bg-white border-2 border-gray-200"
+                              ? "bg-gradient-to-r from-[#2e1a47] to-[#3d2456] dark:from-[#4a2d5f] dark:to-[#5a3d6f]"
+                              : isDark
+                                ? "bg-gray-700 border-2 border-gray-600"
+                                : "bg-white border-2 border-gray-200"
                           }`}
                         >
                           {msg.type === "user" ? (
                             <User className="h-5 w-5 text-white" />
                           ) : (
-                            <Bot className="h-5 w-5 text-[#2e1a47]" />
+                            <Bot className={`h-5 w-5 ${isDark ? "text-white" : "text-[#2e1a47]"}`} />
                           )}
                         </div>
                         <div className="flex flex-col">
                           <div
-                            className={`rounded-2xl px-4 py-3 shadow-sm ${
+                            className={`rounded-2xl px-4 py-3 shadow-sm transition-colors duration-200 ${
                               msg.type === "user"
-                                ? "bg-gradient-to-r from-[#2e1a47] to-[#3d2456] text-white rounded-br-md"
-                                : "bg-white text-gray-800 border border-gray-200 rounded-bl-md"
+                                ? "bg-gradient-to-r from-[#2e1a47] to-[#3d2456] dark:from-[#4a2d5f] dark:to-[#5a3d6f] text-white rounded-br-md"
+                                : isDark
+                                  ? "bg-gray-700 text-white border border-gray-600 rounded-bl-md"
+                                  : "bg-white text-gray-800 border border-gray-200 rounded-bl-md"
                             }`}
                           >
                             <div className="whitespace-pre-line text-sm leading-relaxed">{msg.message}</div>
@@ -362,7 +370,7 @@ const ChatBot = () => {
                                     <button
                                       key={index}
                                       onClick={() => handleFollowUp(followUp)}
-                                      className="text-xs bg-white/20 hover:bg-white/30 rounded-full px-3 py-1 transition-all duration-200 hover:scale-105"
+                                      className="text-xs bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 rounded-full px-3 py-1 transition-all duration-200 hover:scale-105"
                                     >
                                       {followUp}
                                     </button>
@@ -372,7 +380,9 @@ const ChatBot = () => {
                             )}
                           </div>
                           <div
-                            className={`text-xs text-gray-500 mt-1 ${msg.type === "user" ? "text-right" : "text-left"}`}
+                            className={`text-xs mt-1 transition-colors duration-200 ${
+                              msg.type === "user" ? "text-right" : "text-left"
+                            } ${isDark ? "text-gray-400" : "text-gray-500"}`}
                           >
                             {formatTime(msg.timestamp)}
                           </div>
@@ -384,18 +394,26 @@ const ChatBot = () => {
                   {isTyping && (
                     <div className="flex justify-start animate-fadeIn">
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-md">
-                          <Bot className="h-5 w-5 text-[#2e1a47]" />
+                        <div
+                          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
+                            isDark ? "bg-gray-700 border-2 border-gray-600" : "bg-white border-2 border-gray-200"
+                          }`}
+                        >
+                          <Bot className={`h-5 w-5 ${isDark ? "text-white" : "text-[#2e1a47]"}`} />
                         </div>
-                        <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
+                        <div
+                          className={`rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border transition-colors duration-200 ${
+                            isDark ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"
+                          }`}
+                        >
                           <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-[#2e1a47] rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-[#2e1a47] dark:bg-white rounded-full animate-bounce"></div>
                             <div
-                              className="w-2 h-2 bg-[#2e1a47] rounded-full animate-bounce"
+                              className="w-2 h-2 bg-[#2e1a47] dark:bg-white rounded-full animate-bounce"
                               style={{ animationDelay: "0.1s" }}
                             ></div>
                             <div
-                              className="w-2 h-2 bg-[#2e1a47] rounded-full animate-bounce"
+                              className="w-2 h-2 bg-[#2e1a47] dark:bg-white rounded-full animate-bounce"
                               style={{ animationDelay: "0.2s" }}
                             ></div>
                           </div>
@@ -408,8 +426,16 @@ const ChatBot = () => {
 
                 {/* Quick Actions */}
                 {messages.length === 1 && (
-                  <div className="p-4 bg-white border-t border-gray-200">
-                    <div className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                  <div
+                    className={`p-4 border-t transition-colors duration-200 ${
+                      isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+                    }`}
+                  >
+                    <div
+                      className={`text-sm font-medium mb-3 flex items-center gap-2 ${
+                        isDark ? "text-gray-300" : "text-gray-700"
+                      }`}
+                    >
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       Quick help topics:
                     </div>
@@ -418,12 +444,30 @@ const ChatBot = () => {
                         <button
                           key={index}
                           onClick={() => handleQuickAction(action.action)}
-                          className="flex items-center gap-3 text-left text-sm p-3 rounded-xl hover:bg-gray-50 transition-all duration-200 border border-gray-100 hover:border-[#2e1a47]/20 hover:shadow-sm group"
+                          className={`flex items-center gap-3 text-left text-sm p-3 rounded-xl transition-all duration-200 border group ${
+                            isDark
+                              ? "hover:bg-gray-700 border-gray-600 hover:border-[#4a2d5f]/40"
+                              : "hover:bg-gray-50 border-gray-100 hover:border-[#2e1a47]/20"
+                          } hover:shadow-sm`}
                         >
-                          <div className="p-2 rounded-lg bg-[#2e1a47]/10 group-hover:bg-[#2e1a47]/20 transition-colors">
-                            <action.icon className="h-4 w-4 text-[#2e1a47]" />
+                          <div
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark
+                                ? "bg-[#4a2d5f]/20 group-hover:bg-[#4a2d5f]/30"
+                                : "bg-[#2e1a47]/10 group-hover:bg-[#2e1a47]/20"
+                            }`}
+                          >
+                            <action.icon className={`h-4 w-4 ${isDark ? "text-white" : "text-[#2e1a47]"}`} />
                           </div>
-                          <span className="font-medium text-gray-700 group-hover:text-[#2e1a47]">{action.text}</span>
+                          <span
+                            className={`font-medium transition-colors ${
+                              isDark
+                                ? "text-gray-300 group-hover:text-white"
+                                : "text-gray-700 group-hover:text-[#2e1a47]"
+                            }`}
+                          >
+                            {action.text}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -431,7 +475,11 @@ const ChatBot = () => {
                 )}
 
                 {/* Input Area */}
-                <div className="p-4 bg-white border-t border-gray-200">
+                <div
+                  className={`p-4 border-t transition-colors duration-200 ${
+                    isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+                  }`}
+                >
                   <div className="flex gap-3 items-end">
                     <div className="flex-1 relative">
                       <textarea
@@ -439,21 +487,29 @@ const ChatBot = () => {
                         onChange={(e) => setInputMessage(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Type your message here..."
-                        className="w-full resize-none border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2e1a47]/20 focus:border-[#2e1a47] transition-all duration-200 pr-12"
+                        className={`w-full resize-none border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2e1a47]/20 transition-all duration-200 pr-12 ${
+                          isDark
+                            ? "border-gray-600 bg-gray-700 text-white placeholder:text-gray-400 focus:border-[#4a2d5f]"
+                            : "border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-[#2e1a47]"
+                        }`}
                         rows="1"
                         style={{
                           minHeight: "48px",
                           maxHeight: "120px",
                           scrollbarWidth: "thin",
-                          scrollbarColor: "#cbd5e1 transparent",
+                          scrollbarColor: isDark ? "#4b5563 transparent" : "#cbd5e1 transparent",
                         }}
                       />
-                      <div className="absolute right-3 bottom-3 text-xs text-gray-400">Press Enter to send</div>
+                      <div
+                        className={`absolute right-3 bottom-3 text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}
+                      >
+                        Press Enter to send
+                      </div>
                     </div>
                     <Button
                       onClick={handleSendMessage}
                       disabled={!inputMessage.trim() || isTyping}
-                      className="bg-gradient-to-r from-[#2e1a47] to-[#3d2456] hover:from-[#3d2456] hover:to-[#4a2d5f] h-12 w-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-[#2e1a47] to-[#3d2456] hover:from-[#3d2456] hover:to-[#4a2d5f] dark:from-[#4a2d5f] dark:to-[#5a3d6f] dark:hover:from-[#5a3d6f] dark:hover:to-[#6a4d7f] h-12 w-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       size="icon"
                     >
                       <Send className="h-5 w-5" />
@@ -478,7 +534,7 @@ const ChatBot = () => {
           scrollbar-width: thin;
         }
         .scrollbar-thumb-gray-300 {
-          scrollbar-color: #d1d5db transparent;
+          scrollbar-color: ${isDark ? "#4b5563" : "#d1d5db"} transparent;
         }
         .scrollbar-track-transparent {
           scrollbar-track-color: transparent;
@@ -491,11 +547,11 @@ const ChatBot = () => {
           background: transparent;
         }
         .overflow-y-auto::-webkit-scrollbar-thumb {
-          background: #d1d5db;
+          background: ${isDark ? "#4b5563" : "#d1d5db"};
           border-radius: 3px;
         }
         .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
+          background: ${isDark ? "#6b7280" : "#9ca3af"};
         }
       `}</style>
     </>
