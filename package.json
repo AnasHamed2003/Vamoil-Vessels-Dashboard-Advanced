@@ -12,16 +12,14 @@
     "web-vitals": "^2.1.4",
     "react-router-dom": "^6.8.1",
     "firebase": "^9.17.2",
-    "date-fns": "^2.29.3",
+    "lucide-react": "^0.263.1",
     "recharts": "^2.5.0",
     "jspdf": "^2.5.1",
     "html2canvas": "^1.4.1",
-    "@emailjs/browser": "^3.11.0",
-    "lucide-react": "^0.263.1",
-    "clsx": "^1.2.1",
-    "tailwind-merge": "^1.14.0",
+    "emailjs-com": "^3.2.0",
     "class-variance-authority": "^0.7.0",
-    "tailwindcss-animate": "^1.0.7"
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^1.14.0"
   },
   "scripts": {
     "start": "react-scripts start",
