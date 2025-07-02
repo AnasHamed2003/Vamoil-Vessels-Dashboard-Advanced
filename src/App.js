@@ -9,28 +9,49 @@ import VesselsList from "./pages/VesselsList"
 import VesselDetails from "./pages/VesselDetails"
 import VesselForm from "./pages/VesselForm"
 import TripCalculator from "./pages/TripCalculator"
-import LPGPrices from "./pages/LPGPrices"
+import Reports from "./pages/Reports"
 import Statistics from "./pages/Statistics"
+import LPGPrices from "./pages/LPGPrices"
 import Profile from "./pages/Profile"
-import About from "./pages/About"
-import Contact from "./pages/Contact"
-import Help from "./pages/Help"
-import Calculator from "./pages/Calculator"
 import AdminDashboard from "./pages/AdminDashboard"
 import AdminUsers from "./pages/AdminUsers"
 import AdminAddUser from "./pages/AdminAddUser"
 import AdminNotifications from "./pages/AdminNotifications"
+import Calculator from "./pages/Calculator"
+import Help from "./pages/Help"
+import Contact from "./pages/Contact"
+import About from "./pages/About"
+import { initializeEmailJS } from "./utils/emailService"
+import "./index.css"
+
+// Initialize EmailJS when the app starts
+initializeEmailJS()
 
 function App() {
   return (
-    <ThemeProvider>
-      <FirebaseProvider>
+    <FirebaseProvider>
+      <ThemeProvider>
         <Router>
-          <div className="App">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
             <Routes>
+              {/* Public Routes */}
               <Route path="/login" element={<Login />} />
+              <Route path="/about" element={<About />} />
+
+              {/* Protected Routes */}
               <Route
                 path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/dashboard" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -39,6 +60,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/vessels"
                 element={
@@ -49,6 +71,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/vessels/:id"
                 element={
@@ -59,26 +82,29 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
-                path="/vessels/add"
+                path="/vessels/new"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute>
                     <Layout>
                       <VesselForm />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/vessels/edit/:id"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute>
                     <Layout>
                       <VesselForm />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/trip-calculator"
                 element={
@@ -89,26 +115,18 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <VesselsList />
+                      <Reports />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/lpg-prices"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <LPGPrices />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
+
               <Route
                 path="/statistics"
                 element={
@@ -119,6 +137,18 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              <Route
+                path="/lpg-prices"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <LPGPrices />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
               <Route
                 path="/profile"
                 element={
@@ -129,36 +159,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/about"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <About />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/contact"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Contact />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/help"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Help />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
+
               <Route
                 path="/calculator"
                 element={
@@ -169,8 +170,32 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
-                path="/admin/dashboard"
+                path="/help"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Help />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/contact"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Contact />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin Routes */}
+              <Route
+                path="/admin"
                 element={
                   <ProtectedRoute requireAdmin={true}>
                     <Layout>
@@ -179,6 +204,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/admin/users"
                 element={
@@ -189,6 +215,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/admin/add-user"
                 element={
@@ -199,6 +226,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/admin/notifications"
                 element={
@@ -209,12 +237,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="*" element={<Navigate to="/" replace />} />
+
+              {/* Catch all route */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
         </Router>
-      </FirebaseProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </FirebaseProvider>
   )
 }
 
