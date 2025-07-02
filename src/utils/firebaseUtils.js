@@ -453,12 +453,12 @@ export const addNotification = async (notificationData, sendEmails = true) => {
     const notificationsCollection = collection(db, "notifications")
     const notificationRef = await addDoc(notificationsCollection, notification)
 
-    console.log("✅ Notification added successfully with ID:", notificationRef.id)
+    
 
     // Send emails if requested and EmailJS is configured
-    if (sendEmails && validateEmailConfig()) {
+    if (sendEmails ) {
       try {
-        console.log("📧 Starting email notification process...")
+        
 
         // Get users who want to receive email notifications
         const users = await getUsersForEmailNotifications()
@@ -478,11 +478,9 @@ export const addNotification = async (notificationData, sendEmails = true) => {
             failedEmails: emailResult.summary.total,
           })
 
-          console.log(
-            `✅ Email process completed: ${emailResult.summary.successful}/${emailResult.summary.total} successful`,
-          )
+          
         } else {
-          console.log("⚠️ No users found for email notifications")
+          
 
           await updateDoc(notificationRef, {
             emailsSent: false,
@@ -491,7 +489,7 @@ export const addNotification = async (notificationData, sendEmails = true) => {
           })
         }
       } catch (emailError) {
-        console.error("❌ Error in email notification process:", emailError)
+        
 
         // Update notification to indicate email failure
         await updateDoc(notificationRef, {
@@ -500,8 +498,8 @@ export const addNotification = async (notificationData, sendEmails = true) => {
           emailAttemptedAt: new Date().toISOString(),
         })
       }
-    } else if (sendEmails && !validateEmailConfig()) {
-      console.warn("⚠️ Email service not configured. Skipping email sending.")
+    } else if (sendEmails ) {
+      
 
       await updateDoc(notificationRef, {
         emailsSent: false,
@@ -511,7 +509,7 @@ export const addNotification = async (notificationData, sendEmails = true) => {
 
     return notificationRef.id
   } catch (error) {
-    console.error("❌ Error adding notification:", error)
+    
     // Log more details about the error
     if (error.code) {
       console.error("Error code:", error.code)
