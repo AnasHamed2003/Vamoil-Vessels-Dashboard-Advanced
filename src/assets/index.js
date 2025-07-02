@@ -1,0 +1,12 @@
+// Central asset exports for easy importing
+export { default as heroTanker } from "./images/hero-tanker.png"
+export { default as oilTerminal } from "./images/oil-terminal.png"
+export { default as vlccTanker } from "./images/vlcc-tanker.png"
+export { default as lpgCarrier } from "./images/lpg-carrier.png"
+export { default as tankerIcon } from "./images/tanker-icon.png"
+export { default as lpgShipIcon } from "./images/lpg-ship-icon.png"
+export { default as chemicalTankerIcon } from "./images/chemical-tanker-icon.png"
+export { default as ceoPortrait } from "./images/ceo-portrait.png"
+export { default as cooPortrait } from "./images/coo-portrait.png"
+export { default as cfoPortrait } from "./images/cfo-portrait.png"
+export { default as vamoilLogo } from "./images/vamoil-logo.png"
