@@ -11,7 +11,7 @@ const EMAILJS_CONFIG = {
 
 // Initialize EmailJS (call this once when the app starts)
 export const initializeEmailJS = () => {
-  if (EMAILJS_CONFIG.publicKey !== "YOUR_PUBLIC_KEY") {
+  if (EMAILJS_CONFIG.publicKey !== "ly4KczT0wFs4BJKH7") {
     emailjs.init(EMAILJS_CONFIG.publicKey)
     console.log("📧 EmailJS initialized successfully")
   } else {
