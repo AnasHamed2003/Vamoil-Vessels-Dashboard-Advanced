@@ -17,97 +17,111 @@ export const useFirebase = () => {
   return context
 }
 
+// Hook for auth (backward compatibility)
+export const useAuth = () => {
+  const context = useContext(FirebaseContext)
+  if (!context) {
+    throw new Error("useAuth must be used within a FirebaseProvider")
+  }
+  return {
+    user: context.user,
+    userProfile: context.userProfile,
+    loading: context.loading,
+    authChecked: context.authChecked,
+    isAdmin: context.isAdmin,
+  }
+}
+
 // Firebase provider component
 export const FirebaseProvider = ({ children }) => {
   const [user, setUser] = useState(null)
+  const [userProfile, setUserProfile] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    // Clear all authentication on app start
-    const clearAuthOnStart = async () => {
-      try {
-        // Sign out any existing user
-        await signOut(auth)
-        console.log("Cleared existing authentication on app start")
+    console.log("FirebaseProvider: Setting up auth listener")
 
-        // Clear any stored authentication data
-        localStorage.removeItem("firebase:authUser")
-        sessionStorage.removeItem("firebase:authUser")
-
-        // Clear any other auth-related storage
-        const keys = Object.keys(localStorage)
-        keys.forEach((key) => {
-          if (key.startsWith("firebase:") || key.startsWith("CachedAuthUser")) {
-            localStorage.removeItem(key)
-          }
-        })
-
-        const sessionKeys = Object.keys(sessionStorage)
-        sessionKeys.forEach((key) => {
-          if (key.startsWith("firebase:") || key.startsWith("CachedAuthUser")) {
-            sessionStorage.removeItem(key)
-          }
-        })
-      } catch (error) {
-        console.log("No existing user to sign out:", error.message)
-      }
-    }
-
-    // Clear auth on component mount (app start)
-    clearAuthOnStart()
-
-    // Listen for auth state changes
+    // Listen for auth state changes - NO CLEARING OF AUTH DATA
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
-      console.log("Auth state changed:", authUser ? authUser.uid : "No user")
+      console.log("Auth state changed:", authUser ? `User: ${authUser.email}` : "No user")
 
-      if (authUser) {
-        // User is signed in
-        setUser(authUser)
+      try {
+        if (authUser) {
+          // User is signed in
+          setUser(authUser)
+          console.log("User authenticated:", authUser.email)
 
-        // Fetch user role from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, "users", authUser.uid))
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            console.log("User data from Firestore:", userData)
-            setUserRole(userData.role || "user")
-          } else {
-            console.log("No user document found, defaulting to user role")
+          // Fetch user data from Firestore
+          try {
+            const userDoc = await getDoc(doc(db, "users", authUser.uid))
+            if (userDoc.exists()) {
+              const userData = userDoc.data()
+              console.log("User data from Firestore:", userData)
+
+              // Set both userProfile and userRole for backward compatibility
+              setUserProfile(userData)
+              setUserRole(userData.role || "user")
+            } else {
+              console.log("No user document found, creating basic profile")
+              // Create a basic profile if none exists
+              const basicProfile = {
+                email: authUser.email,
+                fullName: authUser.displayName || authUser.email.split("@")[0],
+                role: "user",
+                createdAt: new Date().toISOString(),
+              }
+              setUserProfile(basicProfile)
+              setUserRole("user")
+            }
+          } catch (error) {
+            console.error("Error fetching user data:", error)
+
+            // Fallback profile
+            const fallbackProfile = {
+              email: authUser.email,
+              fullName: authUser.displayName || authUser.email.split("@")[0],
+              role: "user",
+              createdAt: new Date().toISOString(),
+            }
+            setUserProfile(fallbackProfile)
             setUserRole("user")
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error)
-          setUserRole("user")
 
-          if (error.code === "permission-denied") {
-            console.warn(
-              "Permission denied when accessing user data. Please check your Firestore security rules. " +
-                "Defaulting to 'user' role for now.",
-            )
+            if (error.code === "permission-denied") {
+              console.warn(
+                "Permission denied when accessing user data. Please check your Firestore security rules. " +
+                  "Defaulting to 'user' role for now.",
+              )
+            }
           }
+        } else {
+          // User is signed out
+          console.log("No user authenticated")
+          setUser(null)
+          setUserProfile(null)
+          setUserRole(null)
         }
-      } else {
-        // User is signed out
-        setUser(null)
-        setUserRole(null)
+      } catch (error) {
+        console.error("Error in auth state change handler:", error)
+      } finally {
+        setLoading(false)
+        setAuthChecked(true)
+        console.log("Auth check completed, loading:", false, "authChecked:", true)
       }
-      setLoading(false)
     })
 
     // Cleanup subscription
-    return () => unsubscribe()
+    return () => {
+      console.log("FirebaseProvider: Cleaning up auth listener")
+      unsubscribe()
+    }
   }, [])
 
   // Logout function
   const logout = async () => {
     try {
       await signOut(auth)
-
-      // Clear storage after logout
-      localStorage.removeItem("firebase:authUser")
-      sessionStorage.removeItem("firebase:authUser")
-
       console.log("User signed out successfully")
     } catch (error) {
       console.error("Error signing out:", error)
@@ -117,8 +131,10 @@ export const FirebaseProvider = ({ children }) => {
   // Value to be provided to consuming components
   const value = {
     user,
+    userProfile,
     userRole,
     loading,
+    authChecked,
     auth,
     db,
     isAdmin: userRole === "admin",

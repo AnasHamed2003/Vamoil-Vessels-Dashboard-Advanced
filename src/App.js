@@ -3,48 +3,47 @@ import { FirebaseProvider } from "./components/FirebaseProvider"
 import { ThemeProvider } from "./components/ThemeProvider"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Layout from "./components/Layout"
+
+// Import pages
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
 import VesselsList from "./pages/VesselsList"
-import VesselDetails from "./pages/VesselDetails"
 import VesselForm from "./pages/VesselForm"
+import VesselDetails from "./pages/VesselDetails"
+import Calculator from "./pages/Calculator"
 import TripCalculator from "./pages/TripCalculator"
-import Reports from "./pages/Reports"
 import Statistics from "./pages/Statistics"
+import Reports from "./pages/Reports"
 import LPGPrices from "./pages/LPGPrices"
+import Help from "./pages/Help"
+import Contact from "./pages/Contact"
+import About from "./pages/About"
 import Profile from "./pages/Profile"
+
+// Admin pages
 import AdminDashboard from "./pages/AdminDashboard"
 import AdminUsers from "./pages/AdminUsers"
 import AdminAddUser from "./pages/AdminAddUser"
 import AdminNotifications from "./pages/AdminNotifications"
-import Calculator from "./pages/Calculator"
-import Help from "./pages/Help"
-import Contact from "./pages/Contact"
-import About from "./pages/About"
-import { initializeEmailJS } from "./utils/emailService"
-import "./index.css"
-
-// Initialize EmailJS when the app starts
-initializeEmailJS()
 
 function App() {
   return (
-    <FirebaseProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <FirebaseProvider>
         <Router>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+          <div className="App">
             <Routes>
-              {/* Public Routes */}
+              {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/about" element={<About />} />
 
-              {/* Protected Routes */}
+              {/* Protected routes with layout */}
               <Route
                 path="/"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/dashboard" replace />
+                      <Dashboard />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -61,6 +60,7 @@ function App() {
                 }
               />
 
+              {/* Vessel routes */}
               <Route
                 path="/vessels"
                 element={
@@ -73,18 +73,7 @@ function App() {
               />
 
               <Route
-                path="/vessels/:id"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <VesselDetails />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/vessels/new"
+                path="/vessels/add"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -106,11 +95,46 @@ function App() {
               />
 
               <Route
+                path="/vessels/:id"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <VesselDetails />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Calculator routes */}
+              <Route
+                path="/calculator"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Calculator />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
                 path="/trip-calculator"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <TripCalculator />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Other routes */}
+              <Route
+                path="/statistics"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Statistics />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -128,44 +152,11 @@ function App() {
               />
 
               <Route
-                path="/statistics"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Statistics />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
                 path="/lpg-prices"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <LPGPrices />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Profile />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/calculator"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Calculator />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -193,11 +184,33 @@ function App() {
                 }
               />
 
-              {/* Admin Routes */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Profile />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <AdminDashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
               <Route
                 path="/admin/dashboard"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute adminOnly>
                     <Layout>
                       <AdminDashboard />
                     </Layout>
@@ -208,7 +221,7 @@ function App() {
               <Route
                 path="/admin/users"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute adminOnly>
                     <Layout>
                       <AdminUsers />
                     </Layout>
@@ -217,9 +230,9 @@ function App() {
               />
 
               <Route
-                path="/admin/add-user"
+                path="/admin/users/add"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute adminOnly>
                     <Layout>
                       <AdminAddUser />
                     </Layout>
@@ -230,7 +243,7 @@ function App() {
               <Route
                 path="/admin/notifications"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute adminOnly>
                     <Layout>
                       <AdminNotifications />
                     </Layout>
@@ -243,8 +256,8 @@ function App() {
             </Routes>
           </div>
         </Router>
-      </ThemeProvider>
-    </FirebaseProvider>
+      </FirebaseProvider>
+    </ThemeProvider>
   )
 }
 

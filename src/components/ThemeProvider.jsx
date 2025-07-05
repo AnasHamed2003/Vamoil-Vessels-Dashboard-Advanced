@@ -2,11 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 
-const ThemeContext = createContext({
-  theme: "light",
-  toggleTheme: () => {},
-  isDark: false,
-})
+const ThemeContext = createContext()
 
 export const useTheme = () => {
   const context = useContext(ThemeContext)
@@ -17,45 +13,35 @@ export const useTheme = () => {
 }
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    // Check localStorage first, then system preference
-    const savedTheme = localStorage.getItem("vamoil-theme")
-    if (savedTheme) {
-      return savedTheme
-    }
-
-    // Check system preference
-    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      return "dark"
-    }
-
-    return "light"
-  })
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    setTheme(newTheme)
-    localStorage.setItem("vamoil-theme", newTheme)
-  }
+  const [theme, setTheme] = useState("light") // Default to light mode
 
   useEffect(() => {
+    // Check if there's a saved theme preference in localStorage
+    const savedTheme = localStorage.getItem("theme")
+
+    if (savedTheme && (savedTheme === "light" || savedTheme === "dark")) {
+      setTheme(savedTheme)
+    }
+    // If no saved preference, keep the default "light" theme
+  }, [])
+
+  useEffect(() => {
+    // Apply theme to document
     const root = window.document.documentElement
-
-    // Remove previous theme classes
     root.classList.remove("light", "dark")
-
-    // Add current theme class
     root.classList.add(theme)
 
-    // Update meta theme-color for mobile browsers
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]')
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute("content", theme === "dark" ? "#1a1a1a" : "#ffffff")
-    }
+    // Save theme preference
+    localStorage.setItem("theme", theme)
   }, [theme])
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"))
+  }
 
   const value = {
     theme,
+    setTheme,
     toggleTheme,
     isDark: theme === "dark",
   }

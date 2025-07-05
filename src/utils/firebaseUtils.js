@@ -1,8 +1,346 @@
-import { db, auth, storage } from "../lib/firebase"
-import { collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
+import { db, auth, storage } from "../lib/firebase"
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { sendNotificationToAllUsers, validateEmailConfig } from "./emailService"
+import { sendNotificationToAllUsers } from "./emailService"
+import { setDoc } from "firebase/firestore"
+
+// Helper function to get current user info
+const getCurrentUserInfo = () => {
+  const user = auth.currentUser
+  return {
+    userId: user?.uid || "unknown",
+    userEmail: user?.email || "unknown@example.com",
+  }
+}
+
+// Helper function to generate a unique filename
+const generateUniqueFilename = (file) => {
+  const extension = file.name.split(".").pop()
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${extension}`
+}
+
+// Function to upload an image to Firebase Storage with better error handling
+const uploadImage = async (file, path) => {
+  try {
+    // Check if storage is available
+    if (!storage) {
+      throw new Error("Firebase Storage is not configured")
+    }
+
+    // Check if user is authenticated
+    if (!auth.currentUser) {
+      throw new Error("User must be authenticated to upload images")
+    }
+
+    const filename = generateUniqueFilename(file)
+    const storageRef = ref(storage, `${path}/${filename}`)
+    console.log("Uploading image to:", `${path}/${filename}`)
+
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file)
+    console.log("Image uploaded successfully")
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref)
+    console.log("Download URL obtained:", downloadURL)
+
+    return {
+      url: downloadURL,
+      path: `${path}/${filename}`,
+      filename,
+    }
+  } catch (error) {
+    console.error("Error uploading image:", error)
+    // Provide more specific error messages
+    if (error.code === "storage/unauthorized") {
+      throw new Error("Permission denied: Please check Firebase Storage security rules")
+    } else if (error.code === "storage/quota-exceeded") {
+      throw new Error("Storage quota exceeded")
+    } else if (error.code === "storage/unauthenticated") {
+      throw new Error("User not authenticated")
+    } else {
+      throw new Error(`Image upload failed: ${error.message}`)
+    }
+  }
+}
+
+// Function to upload any file to Firebase Storage
+const uploadFile = async (file, path) => {
+  try {
+    // Check if storage is available
+    if (!storage) {
+      throw new Error("Firebase Storage is not configured")
+    }
+
+    // Check if user is authenticated
+    if (!auth.currentUser) {
+      throw new Error("User must be authenticated to upload files")
+    }
+
+    const filename = generateUniqueFilename(file)
+    const storageRef = ref(storage, `${path}/${filename}`)
+    console.log("Uploading file to:", `${path}/${filename}`)
+
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file)
+    console.log("File uploaded successfully")
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref)
+    console.log("Download URL obtained:", downloadURL)
+
+    return {
+      url: downloadURL,
+      path: `${path}/${filename}`,
+      filename,
+      originalName: file.name,
+      size: file.size,
+      type: file.type,
+    }
+  } catch (error) {
+    console.error("Error uploading file:", error)
+    // Provide more specific error messages
+    if (error.code === "storage/unauthorized") {
+      throw new Error("Permission denied: Please check Firebase Storage security rules")
+    } else if (error.code === "storage/quota-exceeded") {
+      throw new Error("Storage quota exceeded")
+    } else if (error.code === "storage/unauthenticated") {
+      throw new Error("User not authenticated")
+    } else {
+      throw new Error(`File upload failed: ${error.message}`)
+    }
+  }
+}
+
+// Function to delete an image from Firebase Storage
+const deleteImage = async (imagePath) => {
+  try {
+    // If the image is a placeholder or doesn't exist, don't try to delete
+    if (!imagePath || imagePath.includes("placeholder")) {
+      return
+    }
+
+    // Extract the path from the URL if it's a full URL
+    const path = imagePath
+    if (imagePath.startsWith("http")) {
+      // This is a simplified approach - in a real app, you'd need a more robust way to get the path
+      // For Firebase Storage URLs, you might need to decode the URL or store the path separately
+      console.log("Cannot delete image by URL. Path needed.")
+      return
+    }
+
+    const imageRef = ref(storage, path)
+    await deleteObject(imageRef)
+    console.log("Image deleted successfully")
+  } catch (error) {
+    console.error("Error deleting image:", error)
+    // Don't throw the error to prevent blocking other operations
+  }
+}
+
+// Function to delete a file from Firebase Storage
+const deleteFile = async (filePath) => {
+  try {
+    if (!filePath) {
+      return
+    }
+    const fileRef = ref(storage, filePath)
+    await deleteObject(fileRef)
+    console.log("File deleted successfully")
+  } catch (error) {
+    console.error("Error deleting file:", error)
+    // Don't throw the error to prevent blocking other operations
+  }
+}
+
+// Function to create a vessel with an image (with fallback for storage issues)
+export const createVesselWithImage = async (vesselData, imageFile) => {
+  try {
+    console.log("FirebaseUtils: Creating vessel with image:", vesselData)
+
+    // Get current user info for tracking
+    const currentUser = auth.currentUser
+    const createdBy = currentUser?.displayName || currentUser?.email || "Unknown User"
+
+    // First, create the vessel document without image
+    const vesselsCollection = collection(db, "vessels")
+    const vesselRef = await addDoc(vesselsCollection, {
+      ...vesselData,
+      createdAt: new Date().toISOString(),
+      createdBy: createdBy,
+      updatedAt: new Date().toISOString(),
+      updatedBy: createdBy,
+    })
+
+    console.log("Vessel document created with ID:", vesselRef.id)
+
+    // If there's an image file, try to upload it
+    if (imageFile) {
+      try {
+        console.log("Attempting to upload image...")
+        const imageInfo = await uploadImage(imageFile, `vessels/${vesselRef.id}`)
+
+        // Update the vessel document with the image URL
+        await updateDoc(vesselRef, {
+          image: imageInfo.url,
+          imagePath: imageInfo.path,
+          updatedAt: new Date().toISOString(),
+          updatedBy: createdBy,
+        })
+
+        console.log("Vessel updated with image URL")
+      } catch (imageError) {
+        console.error("Image upload failed, but vessel was created:", imageError)
+        // Update the vessel with a placeholder image and error info
+        await updateDoc(vesselRef, {
+          image: "/placeholder.svg",
+          imageUploadError: imageError.message,
+          imageUploadAttempted: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: createdBy,
+        })
+        // Don't throw the error - vessel creation succeeded even if image upload failed
+        console.warn("Vessel created successfully but image upload failed. Using placeholder image.")
+      }
+    }
+
+    return vesselRef.id
+  } catch (error) {
+    console.error("Error creating vessel:", error)
+    throw error
+  }
+}
+
+// Function to update a vessel with a new image (with fallback for storage issues)
+export const updateVesselWithImage = async (vesselId, vesselData, newImageFile, currentImagePath) => {
+  try {
+    console.log("FirebaseUtils: Updating vessel with image:", vesselId, vesselData)
+
+    const currentUser = auth.currentUser
+    const updatedBy = currentUser?.displayName || currentUser?.email || "Unknown User"
+    const vesselRef = doc(db, "vessels", vesselId)
+
+    // If there's a new image file, try to upload it
+    if (newImageFile) {
+      try {
+        console.log("Attempting to upload new image...")
+        // Upload the new image
+        const imageInfo = await uploadImage(newImageFile, `vessels/${vesselId}`)
+
+        // Delete the old image if it exists and isn't a placeholder
+        if (currentImagePath && !currentImagePath.includes("placeholder")) {
+          await deleteImage(currentImagePath)
+        }
+
+        // Update vessel data with new image info
+        await updateDoc(vesselRef, {
+          ...vesselData,
+          image: imageInfo.url,
+          imagePath: imageInfo.path,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy,
+          imageUploadError: null, // Clear any previous upload errors
+        })
+
+        console.log("Vessel updated with new image")
+      } catch (imageError) {
+        console.error("Image upload failed during update:", imageError)
+        // Update vessel data without changing the image
+        await updateDoc(vesselRef, {
+          ...vesselData,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy,
+          imageUploadError: imageError.message,
+          imageUploadAttempted: new Date().toISOString(),
+        })
+        // Throw the error for image upload failures during updates
+        throw new Error(`Vessel updated but image upload failed: ${imageError.message}`)
+      }
+    } else {
+      // Just update the vessel data without changing the image
+      await updateDoc(vesselRef, {
+        ...vesselData,
+        updatedAt: new Date().toISOString(),
+        updatedBy: updatedBy,
+      })
+    }
+
+    return true
+  } catch (error) {
+    console.error("Error updating vessel with image:", error)
+    throw error
+  }
+}
+
+// Function to get a vessel by ID from Firestore
+export const getVesselById = async (vesselId) => {
+  try {
+    console.log("FirebaseUtils: Fetching vessel by ID:", vesselId)
+    if (!vesselId) {
+      console.log("FirebaseUtils: No vessel ID provided")
+      return null
+    }
+
+    const vesselDocRef = doc(db, "vessels", vesselId)
+    const vesselDoc = await getDoc(vesselDocRef)
+
+    if (vesselDoc.exists()) {
+      const vesselData = { id: vesselDoc.id, ...vesselDoc.data() }
+      console.log("FirebaseUtils: Vessel found:", vesselData)
+      return vesselData
+    } else {
+      console.log("FirebaseUtils: No vessel found with ID:", vesselId)
+      return null
+    }
+  } catch (error) {
+    console.error("Error fetching vessel:", error)
+    throw error
+  }
+}
+
+// Function to get all vessels from Firestore
+export const getAllVessels = async () => {
+  try {
+    console.log("FirebaseUtils: Fetching all vessels...")
+    const vesselsCollection = collection(db, "vessels")
+    const vesselsSnapshot = await getDocs(vesselsCollection)
+    const vesselsList = vesselsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    console.log("FirebaseUtils: Fetched vessels:", vesselsList.length)
+    return vesselsList
+  } catch (error) {
+    console.error("Error fetching vessels:", error)
+    throw error
+  }
+}
+
+// Function to delete a vessel and its associated image
+export const deleteVessel = async (vesselId) => {
+  try {
+    console.log("FirebaseUtils: Deleting vessel:", vesselId)
+
+    // Get the vessel to find the image path
+    const vesselData = await getVesselById(vesselId)
+
+    // Delete the vessel document
+    const vesselRef = doc(db, "vessels", vesselId)
+    await deleteDoc(vesselRef)
+
+    // If the vessel has an image, delete it too
+    if (vesselData && vesselData.imagePath) {
+      await deleteImage(vesselData.imagePath)
+    }
+
+    console.log("FirebaseUtils: Vessel deleted successfully")
+    return true
+  } catch (error) {
+    console.error("Error deleting vessel:", error)
+    throw error
+  }
+}
 
 // Function to create a new user with email and password
 export const createUser = async (email, password, additionalData = {}) => {
@@ -51,6 +389,32 @@ export const getAllUsers = async () => {
   }
 }
 
+// Function to get user by ID
+export const getUserById = async (userId) => {
+  try {
+    console.log("FirebaseUtils: Fetching user by ID:", userId)
+    if (!userId) {
+      console.log("FirebaseUtils: No user ID provided")
+      return null
+    }
+
+    const userDocRef = doc(db, "users", userId)
+    const userDoc = await getDoc(userDocRef)
+
+    if (userDoc.exists()) {
+      const userData = { id: userDoc.id, ...userDoc.data() }
+      console.log("FirebaseUtils: User found:", userData)
+      return userData
+    } else {
+      console.log("FirebaseUtils: No user found with ID:", userId)
+      return null
+    }
+  } catch (error) {
+    console.error("Error fetching user:", error)
+    throw error
+  }
+}
+
 // Function to get users who want to receive email notifications
 export const getUsersForEmailNotifications = async () => {
   try {
@@ -59,23 +423,6 @@ export const getUsersForEmailNotifications = async () => {
     return users.filter((user) => user.emailNotifications !== false && user.email)
   } catch (error) {
     console.error("Error fetching users for email notifications:", error)
-    throw error
-  }
-}
-
-// Function to get all vessels from Firestore
-export const getAllVessels = async () => {
-  try {
-    const vesselsCollection = collection(db, "vessels")
-    const vesselsSnapshot = await getDocs(vesselsCollection)
-    const vesselsList = vesselsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
-
-    return vesselsList
-  } catch (error) {
-    console.error("Error fetching vessels:", error)
     throw error
   }
 }
@@ -108,311 +455,6 @@ export const deleteUser = async (userId) => {
   }
 }
 
-// Function to get a vessel by ID from Firestore
-export const getVesselById = async (vesselId) => {
-  try {
-    const vesselDocRef = doc(db, "vessels", vesselId)
-    const vesselDoc = await getDoc(vesselDocRef)
-
-    if (vesselDoc.exists()) {
-      return { id: vesselDoc.id, ...vesselDoc.data() }
-    } else {
-      return null
-    }
-  } catch (error) {
-    console.error("Error fetching vessel:", error)
-    throw error
-  }
-}
-
-// Helper function to generate a unique filename
-const generateUniqueFilename = (file) => {
-  const extension = file.name.split(".").pop()
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${extension}`
-}
-
-// Function to upload an image to Firebase Storage with better error handling
-const uploadImage = async (file, path) => {
-  try {
-    // Check if storage is available
-    if (!storage) {
-      throw new Error("Firebase Storage is not configured")
-    }
-
-    // Check if user is authenticated
-    if (!auth.currentUser) {
-      throw new Error("User must be authenticated to upload images")
-    }
-
-    const filename = generateUniqueFilename(file)
-    const storageRef = ref(storage, `${path}/${filename}`)
-
-    console.log("Uploading image to:", `${path}/${filename}`)
-
-    // Upload the file
-    const snapshot = await uploadBytes(storageRef, file)
-    console.log("Image uploaded successfully")
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref)
-    console.log("Download URL obtained:", downloadURL)
-
-    return {
-      url: downloadURL,
-      path: `${path}/${filename}`,
-      filename,
-    }
-  } catch (error) {
-    console.error("Error uploading image:", error)
-
-    // Provide more specific error messages
-    if (error.code === "storage/unauthorized") {
-      throw new Error("Permission denied: Please check Firebase Storage security rules")
-    } else if (error.code === "storage/quota-exceeded") {
-      throw new Error("Storage quota exceeded")
-    } else if (error.code === "storage/unauthenticated") {
-      throw new Error("User not authenticated")
-    } else {
-      throw new Error(`Image upload failed: ${error.message}`)
-    }
-  }
-}
-
-// Function to upload any file to Firebase Storage
-const uploadFile = async (file, path) => {
-  try {
-    // Check if storage is available
-    if (!storage) {
-      throw new Error("Firebase Storage is not configured")
-    }
-
-    // Check if user is authenticated
-    if (!auth.currentUser) {
-      throw new Error("User must be authenticated to upload files")
-    }
-
-    const filename = generateUniqueFilename(file)
-    const storageRef = ref(storage, `${path}/${filename}`)
-
-    console.log("Uploading file to:", `${path}/${filename}`)
-
-    // Upload the file
-    const snapshot = await uploadBytes(storageRef, file)
-    console.log("File uploaded successfully")
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref)
-    console.log("Download URL obtained:", downloadURL)
-
-    return {
-      url: downloadURL,
-      path: `${path}/${filename}`,
-      filename,
-      originalName: file.name,
-      size: file.size,
-      type: file.type,
-    }
-  } catch (error) {
-    console.error("Error uploading file:", error)
-
-    // Provide more specific error messages
-    if (error.code === "storage/unauthorized") {
-      throw new Error("Permission denied: Please check Firebase Storage security rules")
-    } else if (error.code === "storage/quota-exceeded") {
-      throw new Error("Storage quota exceeded")
-    } else if (error.code === "storage/unauthenticated") {
-      throw new Error("User not authenticated")
-    } else {
-      throw new Error(`File upload failed: ${error.message}`)
-    }
-  }
-}
-
-// Function to delete an image from Firebase Storage
-const deleteImage = async (imagePath) => {
-  try {
-    // If the image is a placeholder or doesn't exist, don't try to delete
-    if (!imagePath || imagePath.includes("placeholder")) {
-      return
-    }
-
-    // Extract the path from the URL if it's a full URL
-    const path = imagePath
-    if (imagePath.startsWith("http")) {
-      // This is a simplified approach - in a real app, you'd need a more robust way to get the path
-      // For Firebase Storage URLs, you might need to decode the URL or store the path separately
-      console.log("Cannot delete image by URL. Path needed.")
-      return
-    }
-
-    const imageRef = ref(storage, path)
-    await deleteObject(imageRef)
-    console.log("Image deleted successfully")
-  } catch (error) {
-    console.error("Error deleting image:", error)
-    // Don't throw the error to prevent blocking other operations
-  }
-}
-
-// Function to delete a file from Firebase Storage
-const deleteFile = async (filePath) => {
-  try {
-    if (!filePath) {
-      return
-    }
-
-    const fileRef = ref(storage, filePath)
-    await deleteObject(fileRef)
-    console.log("File deleted successfully")
-  } catch (error) {
-    console.error("Error deleting file:", error)
-    // Don't throw the error to prevent blocking other operations
-  }
-}
-
-// Function to create a vessel with an image (with fallback for storage issues)
-export const createVesselWithImage = async (vesselData, imageFile) => {
-  try {
-    // Get current user info for tracking
-    const currentUser = auth.currentUser
-    const createdBy = currentUser?.displayName || currentUser?.email || "Unknown User"
-
-    // First, create the vessel document without image
-    const vesselsCollection = collection(db, "vessels")
-    const vesselRef = await addDoc(vesselsCollection, {
-      ...vesselData,
-      createdAt: new Date().toISOString(),
-      createdBy: createdBy,
-      updatedAt: new Date().toISOString(),
-      updatedBy: createdBy,
-    })
-
-    console.log("Vessel document created with ID:", vesselRef.id)
-
-    // If there's an image file, try to upload it
-    if (imageFile) {
-      try {
-        console.log("Attempting to upload image...")
-        const imageInfo = await uploadImage(imageFile, `vessels/${vesselRef.id}`)
-
-        // Update the vessel document with the image URL
-        await updateDoc(vesselRef, {
-          image: imageInfo.url,
-          imagePath: imageInfo.path,
-          updatedAt: new Date().toISOString(),
-          updatedBy: createdBy,
-        })
-
-        console.log("Vessel updated with image URL")
-      } catch (imageError) {
-        console.error("Image upload failed, but vessel was created:", imageError)
-
-        // Update the vessel with a placeholder image and error info
-        await updateDoc(vesselRef, {
-          image: "/placeholder.svg",
-          imageUploadError: imageError.message,
-          imageUploadAttempted: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          updatedBy: createdBy,
-        })
-
-        // Don't throw the error - vessel creation succeeded even if image upload failed
-        console.warn("Vessel created successfully but image upload failed. Using placeholder image.")
-      }
-    }
-
-    return vesselRef.id
-  } catch (error) {
-    console.error("Error creating vessel:", error)
-    throw error
-  }
-}
-
-// Function to update a vessel with a new image (with fallback for storage issues)
-export const updateVesselWithImage = async (vesselId, vesselData, newImageFile, currentImagePath) => {
-  try {
-    const currentUser = auth.currentUser
-    const updatedBy = currentUser?.displayName || currentUser?.email || "Unknown User"
-
-    const vesselRef = doc(db, "vessels", vesselId)
-
-    // If there's a new image file, try to upload it
-    if (newImageFile) {
-      try {
-        console.log("Attempting to upload new image...")
-
-        // Upload the new image
-        const imageInfo = await uploadImage(newImageFile, `vessels/${vesselId}`)
-
-        // Delete the old image if it exists and isn't a placeholder
-        if (currentImagePath && !currentImagePath.includes("placeholder")) {
-          await deleteImage(currentImagePath)
-        }
-
-        // Update vessel data with new image info
-        await updateDoc(vesselRef, {
-          ...vesselData,
-          image: imageInfo.url,
-          imagePath: imageInfo.path,
-          updatedAt: new Date().toISOString(),
-          updatedBy: updatedBy,
-          imageUploadError: null, // Clear any previous upload errors
-        })
-
-        console.log("Vessel updated with new image")
-      } catch (imageError) {
-        console.error("Image upload failed during update:", imageError)
-
-        // Update vessel data without changing the image
-        await updateDoc(vesselRef, {
-          ...vesselData,
-          updatedAt: new Date().toISOString(),
-          updatedBy: updatedBy,
-          imageUploadError: imageError.message,
-          imageUploadAttempted: new Date().toISOString(),
-        })
-
-        // Throw the error for image upload failures during updates
-        throw new Error(`Vessel updated but image upload failed: ${imageError.message}`)
-      }
-    } else {
-      // Just update the vessel data without changing the image
-      await updateDoc(vesselRef, {
-        ...vesselData,
-        updatedAt: new Date().toISOString(),
-        updatedBy: updatedBy,
-      })
-    }
-
-    return true
-  } catch (error) {
-    console.error("Error updating vessel with image:", error)
-    throw error
-  }
-}
-
-// Function to delete a vessel and its associated image
-export const deleteVessel = async (vesselId) => {
-  try {
-    // Get the vessel to find the image path
-    const vesselData = await getVesselById(vesselId)
-
-    // Delete the vessel document
-    const vesselRef = doc(db, "vessels", vesselId)
-    await deleteDoc(vesselRef)
-
-    // If the vessel has an image, delete it too
-    if (vesselData && vesselData.imagePath) {
-      await deleteImage(vesselData.imagePath)
-    }
-
-    return true
-  } catch (error) {
-    console.error("Error deleting vessel:", error)
-    throw error
-  }
-}
-
 // Function to get all notifications
 export const getAllNotifications = async () => {
   try {
@@ -422,7 +464,6 @@ export const getAllNotifications = async () => {
       id: doc.id,
       ...doc.data(),
     }))
-
     // Sort by createdAt (newest first)
     return notificationsList.sort((a, b) => {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
@@ -453,20 +494,14 @@ export const addNotification = async (notificationData, sendEmails = true) => {
     const notificationsCollection = collection(db, "notifications")
     const notificationRef = await addDoc(notificationsCollection, notification)
 
-    
-
     // Send emails if requested and EmailJS is configured
-    if (sendEmails ) {
+    if (sendEmails) {
       try {
-        
-
         // Get users who want to receive email notifications
         const users = await getUsersForEmailNotifications()
-
         if (users.length > 0) {
           // Send emails to all users
           const emailResult = await sendNotificationToAllUsers(notification, users)
-
           // Update the notification with email results
           await updateDoc(notificationRef, {
             emailsSent: true,
@@ -477,11 +512,7 @@ export const addNotification = async (notificationData, sendEmails = true) => {
             successfulEmails: emailResult.summary.successful,
             failedEmails: emailResult.summary.total,
           })
-
-          
         } else {
-          
-
           await updateDoc(notificationRef, {
             emailsSent: false,
             emailError: "No users found for email notifications",
@@ -489,8 +520,6 @@ export const addNotification = async (notificationData, sendEmails = true) => {
           })
         }
       } catch (emailError) {
-        
-
         // Update notification to indicate email failure
         await updateDoc(notificationRef, {
           emailsSent: false,
@@ -498,9 +527,7 @@ export const addNotification = async (notificationData, sendEmails = true) => {
           emailAttemptedAt: new Date().toISOString(),
         })
       }
-    } else if (sendEmails ) {
-      
-
+    } else if (sendEmails) {
       await updateDoc(notificationRef, {
         emailsSent: false,
         emailError: "Email service not configured",
@@ -509,7 +536,6 @@ export const addNotification = async (notificationData, sendEmails = true) => {
 
     return notificationRef.id
   } catch (error) {
-    
     // Log more details about the error
     if (error.code) {
       console.error("Error code:", error.code)
@@ -523,7 +549,6 @@ export const updateNotification = async (notificationId, data) => {
   try {
     const currentUser = auth.currentUser
     const updatedBy = currentUser?.displayName || currentUser?.email || "System"
-
     const notificationRef = doc(db, "notifications", notificationId)
     await updateDoc(notificationRef, {
       ...data,
@@ -558,7 +583,6 @@ export const getAllLPGPrices = async () => {
       id: doc.id,
       ...doc.data(),
     }))
-
     // Sort by date (newest first)
     return lpgList.sort((a, b) => {
       return new Date(b.date || 0) - new Date(a.date || 0)
@@ -574,7 +598,6 @@ export const addLPGPrice = async (lpgData) => {
   try {
     const currentUser = auth.currentUser
     const createdBy = currentUser?.displayName || currentUser?.email || "System"
-
     console.log("Adding LPG price:", lpgData)
 
     // Ensure we have a valid lpgPrices collection reference
@@ -590,7 +613,6 @@ export const addLPGPrice = async (lpgData) => {
     // Add the document to Firestore
     const docRef = await addDoc(lpgCollection, dataToAdd)
     console.log("LPG price added with ID:", docRef.id)
-
     return docRef.id
   } catch (error) {
     console.error("Error adding LPG price:", error)
@@ -607,7 +629,6 @@ export const updateLPGPrice = async (lpgId, data) => {
   try {
     const currentUser = auth.currentUser
     const updatedBy = currentUser?.displayName || currentUser?.email || "System"
-
     console.log("Updating LPG price:", lpgId, data)
 
     // Get a reference to the document
@@ -650,7 +671,6 @@ export const saveTripReport = async (reportData, attachmentFiles = []) => {
     const uploadedFiles = []
     if (attachmentFiles && attachmentFiles.length > 0) {
       console.log(`Uploading ${attachmentFiles.length} files...`)
-
       for (const file of attachmentFiles) {
         try {
           const fileInfo = await uploadFile(file, `trip-reports/${Date.now()}`)
@@ -679,18 +699,15 @@ export const saveTripReport = async (reportData, attachmentFiles = []) => {
 
     console.log("Trip report saved successfully with ID:", reportRef.id)
     console.log(`${uploadedFiles.length} files attached to the report`)
-
     return reportRef.id
   } catch (error) {
     console.error("Error saving trip report:", error)
-
     // Provide more helpful error messages for permission issues
     if (error.code === "permission-denied") {
       throw new Error(
         "Permission denied: Please update your Firestore security rules to allow access to the tripReports collection.",
       )
     }
-
     throw error
   }
 }
@@ -704,20 +721,17 @@ export const getAllTripReports = async () => {
       id: doc.id,
       ...doc.data(),
     }))
-
     // Sort by date (newest first)
     return reportsList.sort((a, b) => {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     })
   } catch (error) {
     console.error("Error fetching trip reports:", error)
-
     // If it's a permission error, return empty array instead of throwing
     if (error.code === "permission-denied") {
       console.warn("Permission denied for tripReports collection. Please update Firestore security rules.")
       return []
     }
-
     throw error
   }
 }
@@ -727,7 +741,6 @@ export const getTripReportById = async (reportId) => {
   try {
     const reportRef = doc(db, "tripReports", reportId)
     const reportDoc = await getDoc(reportRef)
-
     if (reportDoc.exists()) {
       return { id: reportDoc.id, ...reportDoc.data() }
     } else {
@@ -757,7 +770,6 @@ export const deleteTripReport = async (reportId) => {
     // Delete the report document
     const reportRef = doc(db, "tripReports", reportId)
     await deleteDoc(reportRef)
-
     return true
   } catch (error) {
     console.error("Error deleting trip report:", error)
@@ -813,3 +825,28 @@ export const getTripReportsByMonth = async (month, year) => {
     throw error
   }
 }
+
+// Add vessel function (alias for createVesselWithImage for backward compatibility)
+export const addVessel = async (vesselData, imageFile = null) => {
+  return await createVesselWithImage(vesselData, imageFile)
+}
+
+// Update vessel function (alias for updateVesselWithImage for backward compatibility)
+export const updateVessel = async (vesselId, vesselData, imageFile = null, currentImagePath = null) => {
+  return await updateVesselWithImage(vesselId, vesselData, imageFile, currentImagePath)
+}
+
+// Get vessel by ID (alias for backward compatibility)
+export const getVessel = getVesselById
+
+// Get all users (alias for backward compatibility)
+export const getUsers = getAllUsers
+
+// Get user by ID (alias for backward compatibility)
+export const getUser = getUserById
+
+// Get all trip reports (alias for backward compatibility)
+export const getTripReports = getAllTripReports
+
+// Get trip report by ID (alias for backward compatibility)
+export const getTripReport = getTripReportById
