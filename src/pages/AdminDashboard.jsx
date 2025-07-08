@@ -60,7 +60,7 @@ const AdminDashboard = () => {
       <div className="mx-auto max-w-6xl w-full">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <Link to="/admin/add-user">
+          <Link to="/admin/users/add">
             <Button>
               <UserPlus className="mr-2 h-4 w-4" /> Add Admin User
             </Button>
@@ -141,7 +141,7 @@ const AdminDashboard = () => {
                   Manage Users
                 </Button>
               </Link>
-              <Link to="/admin/add-user">
+              <Link to="/admin/users/add">
                 <Button className="w-full" variant="outline">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add Admin User

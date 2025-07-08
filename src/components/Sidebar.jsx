@@ -137,9 +137,9 @@ const Sidebar = () => {
               </Link>
 
               <Link
-                to="/admin/add-user"
+                to="/admin/users/add"
                 className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                  isActive("/admin/add-user")
+                  isActive("/admin/users/add")
                     ? "bg-white/10 text-white"
                     : "text-gray-300 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-800"
                 }`}
