@@ -25,6 +25,7 @@ import AdminDashboard from "./pages/AdminDashboard"
 import AdminUsers from "./pages/AdminUsers"
 import AdminAddUser from "./pages/AdminAddUser"
 import AdminNotifications from "./pages/AdminNotifications"
+import AdminPendingReports from "./pages/AdminPendingReports"
 
 function App() {
   return (
@@ -235,6 +236,17 @@ function App() {
                   <ProtectedRoute adminOnly>
                     <Layout>
                       <AdminAddUser />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/pending-reports"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Layout>
+                      <AdminPendingReports />
                     </Layout>
                   </ProtectedRoute>
                 }

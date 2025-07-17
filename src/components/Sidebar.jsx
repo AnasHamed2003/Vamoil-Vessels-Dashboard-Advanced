@@ -11,6 +11,7 @@ import {
   UserPlus,
   TrendingUp,
   MapPin,
+  Clock,
 } from "lucide-react"
 import { useFirebase } from "./FirebaseProvider"
 
@@ -146,6 +147,18 @@ const Sidebar = () => {
               >
                 <UserPlus className="h-5 w-5" />
                 <span className="hidden md:inline">Add User</span>
+              </Link>
+
+              <Link
+                to="/admin/pending-reports"
+                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                  isActive("/admin/pending-reports")
+                    ? "bg-white/10 text-white"
+                    : "text-gray-300 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-800"
+                }`}
+              >
+                <Clock className="h-5 w-5" />
+                <span className="hidden md:inline">Pending Reports</span>
               </Link>
             </>
           )}

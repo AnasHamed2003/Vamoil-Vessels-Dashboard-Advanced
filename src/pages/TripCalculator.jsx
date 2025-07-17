@@ -56,41 +56,42 @@ const TripCalculator = () => {
   const [results, setResults] = useState(null)
   const saveModalRef = useRef(null)
 
-  useEffect(() => {
-    const fetchVessels = async () => {
-      try {
-        setLoading(true)
-        const vesselsList = await getAllVessels()
-        setAllVessels(vesselsList)
+  const fetchVessels = async () => {
+    try {
+      setLoading(true)
+      const vesselsList = await getAllVessels()
+      setAllVessels(vesselsList)
 
-        // Filter vessels that have the required trip calculation fields
-        const tripsEnabledVessels = vesselsList.filter(
-          (vessel) =>
-            vessel.doPrice &&
-            vessel.doStandby &&
-            vessel.doAtSea &&
-            vessel.doDischarge &&
-            vessel.doIdle &&
-            vessel.loading &&
-            vessel.idle &&
-            vessel.hire &&
-            vessel.hirePerDay &&
-            vessel.vesselCapacity &&
-            vessel.seaBallastWithCargoTemp &&
-            vessel.discharging,
+      // Filter vessels that have the required trip calculation fields (allow 0 values but not undefined/null)
+      const tripsEnabledVessels = vesselsList.filter((vessel) => {
+        const requiredFields = [
+          'doPrice', 'doStandby', 'doAtSea', 'doDischarge', 'doIdle',
+          'loading', 'idle', 'hire', 'hirePerDay', 'vesselCapacity',
+          'seaBallastWithCargoTemp', 'discharging'
+        ]
+        
+        // Check if vessel has all required fields defined (not undefined/null)
+        return requiredFields.every(field => 
+          vessel.hasOwnProperty(field) && vessel[field] !== null && vessel[field] !== undefined
         )
-        setVessels(tripsEnabledVessels)
-        setError(null)
-      } catch (error) {
-        console.error("Error fetching vessels:", error)
-        setError("Failed to load vessels. Please try again.")
-      } finally {
-        setLoading(false)
-      }
+      })
+      setVessels(tripsEnabledVessels)
+      setError(null)
+    } catch (error) {
+      console.error("Error fetching vessels:", error)
+      setError("Failed to load vessels. Please try again.")
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchVessels()
   }, [])
+
+  const handleRefreshVessels = () => {
+    fetchVessels()
+  }
 
   const handleVesselSelect = (vessel) => {
     setSelectedVessel(vessel)
@@ -446,7 +447,7 @@ const TripCalculator = () => {
         uploadedFiles.map((f) => f.file),
       )
 
-      setSuccess("Trip report saved successfully with all attachments! You can view it in the Reports section.")
+      setSuccess("Trip report submitted successfully and is pending admin approval! You will be notified once it's approved and available in the Reports section.")
       setTripName("")
       setTripDate(new Date().toISOString().split("T")[0])
       setUploadedFiles([])
@@ -482,10 +483,22 @@ const TripCalculator = () => {
         {/* Vessel Selection */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Ship className="h-5 w-5" />
-              Select Vessel
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Ship className="h-5 w-5" />
+                Select Vessel
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefreshVessels}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -522,11 +535,24 @@ const TripCalculator = () => {
                 <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
                 <p className="text-gray-700 mb-2 font-medium">No vessels configured for trip calculation</p>
                 <p className="text-sm text-gray-500 mb-4">
-                  You have {allVessels.length} vessel(s), but they need trip calculation data
+                  You have {allVessels.length} vessel(s), but they need trip calculation data to be filled in their vessel details
                 </p>
-                <Link to="/vessels/add">
-                  <Button size="sm">Add New Vessel with Trip Data</Button>
-                </Link>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4 text-left">
+                  <p className="text-sm text-yellow-800 font-medium mb-2">Required fields for trip calculation:</p>
+                  <ul className="text-xs text-yellow-700 space-y-1 list-disc list-inside">
+                    <li>D.O Price, D.O Standby, D.O At Sea, D.O Discharge, D.O Idle</li>
+                    <li>Loading, Idle, Hire, Hire Per Day</li>
+                    <li>Vessel Capacity, Sea Ballast with Cargo Temp, Discharging</li>
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <Link to="/vessels">
+                    <Button variant="outline" size="sm" className="mr-2">Edit Existing Vessels</Button>
+                  </Link>
+                  <Link to="/vessels/add">
+                    <Button size="sm">Add New Vessel</Button>
+                  </Link>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8">

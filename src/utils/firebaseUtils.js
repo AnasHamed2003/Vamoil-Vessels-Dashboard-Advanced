@@ -687,7 +687,7 @@ export const saveTripReport = async (reportData, attachmentFiles = []) => {
       }
     }
 
-    // Add to Firestore with file information
+    // Add to Firestore with file information and approval status
     const tripReportsCollection = collection(db, "tripReports")
     const reportRef = await addDoc(tripReportsCollection, {
       ...reportData,
@@ -695,6 +695,13 @@ export const saveTripReport = async (reportData, attachmentFiles = []) => {
       fileCount: uploadedFiles.length,
       createdAt: new Date().toISOString(),
       createdBy: createdBy,
+      // Approval system fields
+      status: "pending", // pending, approved, rejected
+      approvedAt: null,
+      approvedBy: null,
+      rejectedAt: null,
+      rejectedBy: null,
+      rejectionReason: null,
     })
 
     console.log("Trip report saved successfully with ID:", reportRef.id)
@@ -712,7 +719,7 @@ export const saveTripReport = async (reportData, attachmentFiles = []) => {
   }
 }
 
-// Function to get all trip reports
+// Function to get all trip reports (only approved ones for regular users)
 export const getAllTripReports = async () => {
   try {
     const tripReportsCollection = collection(db, "tripReports")
@@ -721,8 +728,12 @@ export const getAllTripReports = async () => {
       id: doc.id,
       ...doc.data(),
     }))
+    
+    // Filter to only show approved reports
+    const approvedReports = reportsList.filter(report => report.status === "approved")
+    
     // Sort by date (newest first)
-    return reportsList.sort((a, b) => {
+    return approvedReports.sort((a, b) => {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     })
   } catch (error) {
@@ -732,6 +743,72 @@ export const getAllTripReports = async () => {
       console.warn("Permission denied for tripReports collection. Please update Firestore security rules.")
       return []
     }
+    throw error
+  }
+}
+
+// Function to get pending trip reports (admin only)
+export const getPendingTripReports = async () => {
+  try {
+    const tripReportsCollection = collection(db, "tripReports")
+    const reportsSnapshot = await getDocs(tripReportsCollection)
+    const reportsList = reportsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    
+    // Filter to only show pending reports
+    const pendingReports = reportsList.filter(report => report.status === "pending")
+    
+    // Sort by date (newest first)
+    return pendingReports.sort((a, b) => {
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    })
+  } catch (error) {
+    console.error("Error fetching pending trip reports:", error)
+    throw error
+  }
+}
+
+// Function to approve a trip report (admin only)
+export const approveTripReport = async (reportId) => {
+  try {
+    const currentUser = auth.currentUser
+    const approvedBy = currentUser?.displayName || currentUser?.email || "Unknown Admin"
+    
+    const reportRef = doc(db, "tripReports", reportId)
+    await updateDoc(reportRef, {
+      status: "approved",
+      approvedAt: new Date().toISOString(),
+      approvedBy: approvedBy,
+    })
+    
+    console.log("Trip report approved successfully:", reportId)
+    return true
+  } catch (error) {
+    console.error("Error approving trip report:", error)
+    throw error
+  }
+}
+
+// Function to reject a trip report (admin only)
+export const rejectTripReport = async (reportId, rejectionReason = "") => {
+  try {
+    const currentUser = auth.currentUser
+    const rejectedBy = currentUser?.displayName || currentUser?.email || "Unknown Admin"
+    
+    const reportRef = doc(db, "tripReports", reportId)
+    await updateDoc(reportRef, {
+      status: "rejected",
+      rejectedAt: new Date().toISOString(),
+      rejectedBy: rejectedBy,
+      rejectionReason: rejectionReason,
+    })
+    
+    console.log("Trip report rejected successfully:", reportId)
+    return true
+  } catch (error) {
+    console.error("Error rejecting trip report:", error)
     throw error
   }
 }
@@ -822,6 +899,29 @@ export const getTripReportsByMonth = async (month, year) => {
     })
   } catch (error) {
     console.error("Error fetching trip reports by month:", error)
+    throw error
+  }
+}
+
+// Function to get user's own trip reports (including pending, approved, and rejected)
+export const getUserTripReports = async (userId) => {
+  try {
+    const tripReportsCollection = collection(db, "tripReports")
+    const reportsSnapshot = await getDocs(tripReportsCollection)
+    const reportsList = reportsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    
+    // Filter to only show current user's reports
+    const userReports = reportsList.filter(report => report.userId === userId)
+    
+    // Sort by date (newest first)
+    return userReports.sort((a, b) => {
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    })
+  } catch (error) {
+    console.error("Error fetching user trip reports:", error)
     throw error
   }
 }

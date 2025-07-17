@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button"
-import { getAllTripReports, deleteTripReport } from "../utils/firebaseUtils"
+import { getAllTripReports, deleteTripReport, getUserTripReports } from "../utils/firebaseUtils"
 import {
   FileText,
   Trash2,
@@ -15,13 +15,20 @@ import {
   CheckSquare,
   Square,
   FileSpreadsheet,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { generateTripReportPDF, exportToCSV } from "../utils/pdfGenerator"
+import { useFirebase } from "../components/FirebaseProvider"
 
 const Reports = () => {
+  const { user } = useFirebase()
   const [selectedReport, setSelectedReport] = useState(null)
   const [tripReports, setTripReports] = useState([])
+  const [userReports, setUserReports] = useState([])
   const [filteredReports, setFilteredReports] = useState([])
   const [selectedReports, setSelectedReports] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -36,9 +43,18 @@ const Reports = () => {
     const fetchReports = async () => {
       try {
         setLoading(true)
+        
+        // Fetch approved reports for all users
         const reports = await getAllTripReports()
         setTripReports(reports)
         setFilteredReports(reports)
+        
+        // Fetch user's own reports (including pending) if user is logged in
+        if (user?.uid) {
+          const userOwnReports = await getUserTripReports(user.uid)
+          setUserReports(userOwnReports)
+        }
+        
         setError(null)
       } catch (error) {
         console.error("Error fetching trip reports:", error)
@@ -54,7 +70,7 @@ const Reports = () => {
     }
 
     fetchReports()
-  }, [])
+  }, [user?.uid])
 
   // Filter reports based on selected criteria
   useEffect(() => {
@@ -317,6 +333,51 @@ const Reports = () => {
         {error && <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md">{error}</div>}
         {success && (
           <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-600 rounded-md">{success}</div>
+        )}
+
+        {/* User's Pending Reports Notification */}
+        {!loading && userReports && userReports.length > 0 && (
+          (() => {
+            const pendingReports = userReports.filter(report => report.status === 'pending')
+            const rejectedReports = userReports.filter(report => report.status === 'rejected')
+            
+            if (pendingReports.length > 0 || rejectedReports.length > 0) {
+              return (
+                <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          Your Report Status Updates
+                        </h3>
+                        {pendingReports.length > 0 && (
+                          <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                            <Clock className="h-4 w-4 inline mr-1" />
+                            You have {pendingReports.length} trip report(s) pending admin approval.
+                          </p>
+                        )}
+                        {rejectedReports.length > 0 && (
+                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                            <XCircle className="h-4 w-4 inline mr-1" />
+                            {rejectedReports.length} of your trip reports were rejected. Please review and resubmit if needed.
+                          </p>
+                        )}
+                        <div className="mt-2 space-y-1">
+                          {[...pendingReports, ...rejectedReports].map(report => (
+                            <div key={report.id} className="text-xs text-orange-600 dark:text-orange-400">
+                              • {report.tripName} - {report.status === 'pending' ? 'Pending Review' : `Rejected: ${report.rejectionReason || 'No reason provided'}`}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            }
+            return null
+          })()
         )}
 
         {/* Export Controls */}
