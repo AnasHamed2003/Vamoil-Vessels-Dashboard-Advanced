@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard"
 import VesselsList from "./pages/VesselsList"
 import VesselForm from "./pages/VesselForm"
 import VesselDetails from "./pages/VesselDetails"
+import VesselTracking from "./pages/VesselTracking"
 import Calculator from "./pages/Calculator"
 import TripCalculator from "./pages/TripCalculator"
 import Statistics from "./pages/Statistics"
@@ -101,6 +102,18 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <VesselDetails />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Vessel Tracking route */}
+              <Route
+                path="/vessel-tracking"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <VesselTracking />
                     </Layout>
                   </ProtectedRoute>
                 }
